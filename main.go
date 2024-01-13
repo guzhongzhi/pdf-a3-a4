@@ -2,15 +2,13 @@ package main
 
 import (
 	"bytes"
-	"errors"
+	"flag"
 	"fmt"
 	"github.com/karmdip-mi/go-fitz"
 	"github.com/signintech/gopdf"
 	"image"
 	"image/draw"
-	"image/gif"
 	"image/jpeg"
-	"image/png"
 	"io/ioutil"
 	"log"
 	"os"
@@ -57,7 +55,7 @@ func pdfToImage2(file string) []string{
 	return imageNames
 }
 
-func a3TOa4(fileName string) []string{
+func a3TOa4(fileName string, reduce int) []string{
 	newImageFileNames := make([]string,0)
 	file,err := os.Open(fileName)
 	if err != nil {
@@ -70,12 +68,13 @@ func a3TOa4(fileName string) []string{
 	img, _, _ := image.Decode(bytes.NewReader(data))
 	imc, _, _ := image.DecodeConfig(bytes.NewReader(data))
 
-	fmt.Println(imc.Width,imc.Height,img.Bounds())
-
-	halfWidth := imc.Width/2
+	imgWidth := imc.Width - reduce
+	halfWidth := imgWidth/2
 	for i:= 0;i<=1;i++ {
 		newImg  := image.NewRGBA(image.Rect(0,0, halfWidth,imc.Height))
-		r := &image.Point{X: halfWidth * i ,Y:0}
+		left := halfWidth * i + (reduce/2 * i * -1)
+		fmt.Println("left: ",i,left)
+		r := &image.Point{X: left  ,Y:0}
 		if i == 1 {
 			r.X -= 0
 		}
@@ -96,8 +95,21 @@ func a3TOa4(fileName string) []string{
 	return newImageFileNames
 }
 
+var in string
+var out string
+func init() {
+	flag.StringVar(&in,"in","","输入文件名")
+	flag.StringVar(&out,"out","","输出文件名")
+}
 func main() {
-	images := pdfToImage2("1.pdf")
+	flag.Parse()
+
+	if in == "" || out == "" {
+		log.Println("输入/输出文件名不能为空")
+		os.Exit(1)
+	}
+
+	images := pdfToImage2(in)
 
 	pdf := gopdf.GoPdf{}
 	rec := gopdf.Rect{
@@ -106,84 +118,31 @@ func main() {
 	}
 	pdf.Start(gopdf.Config{PageSize: rec})
 	fmt.Println(rec)
-	for _, imageName := range images {
-		names := a3TOa4(imageName)
+	for idx, imageName := range images {
+		left := 0
+		switch idx {
+		case 0:
+			left=6
+		case 1:
+			left = 60
+		case 3:
+			left=140
+
+		}
+
+		fmt.Println(imageName,left)
+		names := a3TOa4(imageName, left)
 		for _,name := range names {
 			pdf.AddPage()
 			img,_ := ioutil.ReadFile(name)
 			imc, _, _ := image.DecodeConfig(bytes.NewReader(img))
 			fmt.Println(imc.Width)
 			fmt.Println(imc.Height)
-			pdf.Image(name, 70, 0, nil) //print image
+			pdf.Image(name, 0, 0, nil) //print image
 		}
 	}
 
-	pdf.WritePdf("a4.pdf")
+	pdf.WritePdf(out)
 
 }
 
-
-func  Trimming(sourceFileName string, destFileName string, x, y, w, h int) {
-	src, err := LoadImage(sourceFileName)
-	if err != nil {
-		log.Println("load image fail..")
-	}
-
-	img, err := ImageCopy(src, x, y, w, h)
-	if err != nil {
-		log.Println("image copy fail...")
-	}
-	saveErr := SaveImage(destFileName, img)
-	if saveErr != nil {
-		log.Println("save image fail..")
-	}
-}
-
-func  LoadImage(path string) (img image.Image, err error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-	img, _, err = image.Decode(file)
-	return
-}
-
-func  SaveImage(p string, src image.Image) error {
-	f, err := os.OpenFile(p, os.O_SYNC|os.O_RDWR|os.O_CREATE, 0666)
-
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	ext := filepath.Ext(p)
-
-	if strings.EqualFold(ext, ".jpg") || strings.EqualFold(ext, ".jpeg") {
-
-		err = jpeg.Encode(f, src, &jpeg.Options{Quality: 80})
-
-	} else if strings.EqualFold(ext, ".png") {
-		err = png.Encode(f, src)
-	} else if strings.EqualFold(ext, ".gif") {
-		err = gif.Encode(f, src, &gif.Options{NumColors: 256})
-	}
-	return err
-}
-
-func ImageCopy(src image.Image, x, y, w, h int) (image.Image, error) {
-
-	var subImg image.Image
-
-	if rgbImg, ok := src.(*image.YCbCr); ok {
-		subImg = rgbImg.SubImage(image.Rect(x, y, x+w, y+h)).(*image.YCbCr) //图片裁剪x0 y0 x1 y1
-	} else if rgbImg, ok := src.(*image.RGBA); ok {
-		subImg = rgbImg.SubImage(image.Rect(x, y, x+w, y+h)).(*image.RGBA) //图片裁剪x0 y0 x1 y1
-	} else if rgbImg, ok := src.(*image.NRGBA); ok {
-		subImg = rgbImg.SubImage(image.Rect(x, y, x+w, y+h)).(*image.NRGBA) //图片裁剪x0 y0 x1 y1
-	} else {
-
-		return subImg, errors.New("图片解码失败")
-	}
-
-	return subImg, nil
-}
