@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/karmdip-mi/go-fitz"
+	"github.com/nfnt/resize"
 	"github.com/signintech/gopdf"
 	"image"
 	"image/draw"
@@ -55,7 +56,12 @@ func pdfToImage2(file string) []string{
 	return imageNames
 }
 
-func a3TOa4(fileName string, reduce int) []string{
+type offset struct {
+	left int
+	width int
+}
+
+func a3TOa4(fileName string, offsets []offset) []string{
 	newImageFileNames := make([]string,0)
 	file,err := os.Open(fileName)
 	if err != nil {
@@ -68,11 +74,12 @@ func a3TOa4(fileName string, reduce int) []string{
 	img, _, _ := image.Decode(bytes.NewReader(data))
 	imc, _, _ := image.DecodeConfig(bytes.NewReader(data))
 
-	imgWidth := imc.Width - reduce
-	halfWidth := imgWidth/2
-	for i:= 0;i<=1;i++ {
-		newImg  := image.NewRGBA(image.Rect(0,0, halfWidth,imc.Height))
-		left := halfWidth * i + (reduce/2 * i * -1)
+	imgWidth := imc.Width
+	number := len(offsets)
+	halfWidth := imgWidth/number
+	for i:= 0;i<number;i++ {
+		newImg  := image.NewRGBA(image.Rect(0,0, halfWidth + offsets[i].width,imc.Height))
+		left := halfWidth * i + offsets[i].left
 		fmt.Println("left: ",i,left)
 		r := &image.Point{X: left  ,Y:0}
 		if i == 1 {
@@ -117,28 +124,65 @@ func main() {
 		H: 2080,
 	}
 	pdf.Start(gopdf.Config{PageSize: rec})
-	fmt.Println(rec)
+
+	pageOffset2 := make(map[int][]offset)
+	pageOffset2[0] = []offset{
+		{left: 50},
+		{left: 10,width: -200},
+	}
+	pageOffset2[1] = []offset{
+		{left: 10},
+		{left: 10,width: -200},
+	}
+
+	type pdfOffset map[int][]offset
+
+	pdfPageOffset := make(map[string]pdfOffset)
+	pdfPageOffset["青羊区2023期末真题.pdf"] = pageOffset2
+
+
+	pageOffset1 := make(map[int][]offset)
+	pageOffset1[0] = []offset{
+		{left: 10,width: 150},
+		{left: 150,width: -150},
+		{left: 10,width: -150},
+	}
+	pageOffset1[1] = []offset{
+		{left: 10,width: 150},
+		{left: 150,width: -120},
+		{left: 10,width: -100},
+	}
+	pdfPageOffset["金牛区2023期末真题.pdf"] = pageOffset1
+
+
+	pageOffset := pdfPageOffset[in]
 	for idx, imageName := range images {
-		left := 0
-		switch idx {
-		case 0:
-			left=6
-		case 1:
-			left = 60
-		case 3:
-			left=140
-
-		}
-
-		fmt.Println(imageName,left)
-		names := a3TOa4(imageName, left)
+		offsets := pageOffset[idx]
+		fmt.Println("idx:",idx,"imageName:",imageName,"offsets:",offsets, "offsetsNum:",len(offsets))
+		names := a3TOa4(imageName,  offsets)
 		for _,name := range names {
 			pdf.AddPage()
-			img,_ := ioutil.ReadFile(name)
-			imc, _, _ := image.DecodeConfig(bytes.NewReader(img))
-			fmt.Println(imc.Width)
-			fmt.Println(imc.Height)
-			pdf.Image(name, 0, 0, nil) //print image
+			body,_ := ioutil.ReadFile(name)
+			img,_ ,err := image.Decode(bytes.NewReader(body))
+			if err != nil {
+				panic(err)
+			}
+			imc, _, _ := image.DecodeConfig(bytes.NewReader(body))
+			fmt.Println("imgWidth:",imc.Width,"imgHeight:",imc.Height)
+			_ = resize.Lanczos2
+			m := resize.Resize(uint(rec.W*1.7), uint(rec.H*1.7), img, resize.Lanczos3)
+			newName := name+".resized.jpg"
+			f , err := os.Create(newName)
+			if err != nil {
+				panic(err)
+			}
+			err = jpeg.Encode(f,m,&jpeg.Options{
+				Quality: 100,
+			})
+			if err != nil {
+				panic(err)
+			}
+			pdf.Image(newName, 0, 0,nil)
 		}
 	}
 

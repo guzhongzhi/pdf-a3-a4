@@ -1,5 +1,7 @@
 github.com/karmdip-mi/go-fitz v0.0.0-20210702102225-a530a79566e9 h1:w2zV18MDGv67JnuHgNQk7CG6ipj9HEBtuZGwy6TrJEE=
 github.com/karmdip-mi/go-fitz v0.0.0-20210702102225-a530a79566e9/go.mod h1:2aHtXmu2gpljEpoBoFMFr+C5GpdHIT8aI1l1UcyvEP4=
+github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 h1:zYyBkD/k9seD2A7fsi6Oo2LfFZAehjjQMERAvZLEDnQ=
+github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646/go.mod h1:jpp1/29i3P1S/RLdc7JQKbRpFeM1dOBd8T9ki5s+AY8=
 github.com/phpdave11/gofpdi v1.0.11/go.mod h1:vBmVV0Do6hSBHC8uKUQ71JGW+ZGQq74llk/7bXwjDoI=
 github.com/phpdave11/gofpdi v1.0.13 h1:o61duiW8M9sMlkVXWlvP92sZJtGKENvW3VExs6dZukQ=
 github.com/phpdave11/gofpdi v1.0.13/go.mod h1:vBmVV0Do6hSBHC8uKUQ71JGW+ZGQq74llk/7bXwjDoI=
